@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Scanner;
 
 public class MainClass {
-	private static String version = "1.0.2";					//Global version identifier
+	private static String version = "1.0.3";					//Global version identifier
 
 	
 	
@@ -24,6 +24,7 @@ public class MainClass {
 		boolean imagesupplied = false;
 		boolean archivesupplied = false;
 		boolean outputallowed = false;
+		List<String> arglist = Arrays.asList(args);
 		String archiveext = "[7z, bz, bz2, lzh, jar, rar, gz, tar, zip]";
 		String imageext = "[tif, tiff, gif, jpeg, jpg, jif, jfif, jp2, jpx, j2k, j2c, fpx, pcd, png, pdf]";
 		
@@ -45,37 +46,40 @@ public class MainClass {
 		}
 		
 		String switchstring;
-		for(int i = 0; i < args.length - 1; i++){
-			switchstring = args[i].toString();
+		for(int i = 0; i < arglist.size(); i++){
+			switchstring = arglist.get(i);
 			switch(switchstring.toLowerCase()){
 			
 			case "-ii":
 				image = new File(args[i+1]);
 				imageextension = image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1");
 				if(image.getAbsoluteFile().exists() == false || image.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported input file : " + image.getAbsolutePath());
+					 System.out.println("Invalid or unsupported input image file : " + image.getAbsolutePath());
 					 System.exit(1);
 				 }
 				 imagesupplied = true;
+				 i++;
 				 break;
 			
 			case "--inputimage":
 				image = new File(args[i+1]);
 				imageextension = image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1");
 				if(image.getAbsoluteFile().exists() == false || image.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported input file : " + image.getAbsolutePath());
+					 System.out.println("Invalid or unsupported input image file : " + image.getAbsolutePath());
 					 System.exit(1);
 				 }
 				 imagesupplied = true;
+				 i++;
 				 break;
 				 
 			case "-ia":
 				archive = new File(args[i+1]);
 				if(archive.getAbsoluteFile().exists() == false || archive.getAbsoluteFile().isDirectory() == true || (archiveext.indexOf(archive.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported input file : " + archive.getAbsolutePath());
+					 System.out.println("Invalid or unsupported input archive file : " + archive.getAbsolutePath());
 					 System.exit(1);
 				 }
 				archivesupplied = true;
+				i++;
 				break;
 				
 			case "--inputarchive":
@@ -85,12 +89,13 @@ public class MainClass {
 					 System.exit(1);
 				 }
 				archivesupplied = true;
+				i++;
 				break;
 				
 			case "-o":
 				output = new File(args[i+1]);
 				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath() + "." + imageextension).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported input file : " + output.getAbsolutePath());
+					 System.out.println("Invalid or unsupported output file : " + output.getAbsolutePath() + "." + imageextension);
 					 System.exit(1);
 				 }
 				if(output.getAbsoluteFile().exists()){
@@ -106,6 +111,7 @@ public class MainClass {
 				}else{
 					outputallowed = true;
 				}
+				i++;
 				break;
 				
 			case "--output":
@@ -127,7 +133,13 @@ public class MainClass {
 				}else{
 					outputallowed = true;
 				}
+				i++;
 				break;
+				
+			default:
+				System.out.print("Invalid parameter: " + arglist.get(i));
+				System.exit(1);
+				
 			}
 		}
 		
