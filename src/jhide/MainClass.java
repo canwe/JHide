@@ -1,15 +1,18 @@
 package jhide;
 
-import java.io.BufferedReader;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
 public class MainClass {
-	private static String version = "1.0.1";					//Global version identifier
+	private static String version = "1.0.2";					//Global version identifier
+
 	
 	
 	
@@ -17,6 +20,7 @@ public class MainClass {
 		File image = null;
 		File archive = null;
 		File output = null;
+		String imageextension = null;
 		boolean imagesupplied = false;
 		boolean archivesupplied = false;
 		boolean outputallowed = false;
@@ -47,6 +51,7 @@ public class MainClass {
 			
 			case "-ii":
 				image = new File(args[i+1]);
+				imageextension = image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1");
 				if(image.getAbsoluteFile().exists() == false || image.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
 					 System.out.println("Invalid or unsupported input file : " + image.getAbsolutePath());
 					 System.exit(1);
@@ -56,6 +61,7 @@ public class MainClass {
 			
 			case "--inputimage":
 				image = new File(args[i+1]);
+				imageextension = image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1");
 				if(image.getAbsoluteFile().exists() == false || image.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(image.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
 					 System.out.println("Invalid or unsupported input file : " + image.getAbsolutePath());
 					 System.exit(1);
@@ -83,7 +89,7 @@ public class MainClass {
 				
 			case "-o":
 				output = new File(args[i+1]);
-				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(output.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
+				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath() + "." + imageextension).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
 					 System.out.println("Invalid or unsupported input file : " + output.getAbsolutePath());
 					 System.exit(1);
 				 }
@@ -104,7 +110,7 @@ public class MainClass {
 				
 			case "--output":
 				output = new File(args[i+1]);
-				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf(output.getAbsolutePath().replaceAll("^.*\\.(.*)$", "$1")) < 0)){
+				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath() + "." + imageextension).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
 					 System.out.println("Invalid or unsupported input file : " + output.getAbsolutePath());
 					 System.exit(1);
 				 }
@@ -125,17 +131,18 @@ public class MainClass {
 			}
 		}
 		
+		if(outputallowed == false){
+			output = new File("combined." + imageextension);
+			outputallowed = true;
+		}
+		
 		if(imagesupplied && archivesupplied && outputallowed){
 			try {
-				@SuppressWarnings("unused")
-				String line;
-			       Process p = Runtime.getRuntime().exec("cmd /C copy /B " + "\"" + image.getAbsolutePath() + "\"" + "+" + "\"" + archive.getAbsolutePath() + "\"" + " " + "\"" + output.getAbsolutePath() + "\""); //ugly but wouldnt work with normal exec
-
-			       BufferedReader in = new BufferedReader(	
-			               new InputStreamReader(p.getInputStream()) );
-			       while ((line = in.readLine()) != null) {
-			       }
-			       in.close();
+				
+				DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output + "." + imageextension)));
+				out.write(Files.readAllBytes(image.toPath()));
+				out.write(Files.readAllBytes(archive.toPath()));
+				out.close();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -146,9 +153,9 @@ public class MainClass {
 	}
 	
 		public static void printhelp(){
-			System.out.println(	"-h:				Displays this help section\n"
+			System.out.println(	"-h				Displays this help section\n"
 					+	"--help				\n"
-					+	"-v				Displays the installed version of JHide"
+					+	"-v				Displays the installed version of JHide\n"
 					+	"--version			\n"
 					+	"-ii				Sets the path to the input image\n"
 					+ 	"--inputimage		\n"
@@ -158,7 +165,7 @@ public class MainClass {
 					+ 	"--output			\n"
 					+	"--supportedformats		Prints out a list of all supported file formats\n\n"
 					+	"Usage examples:\n"
-					+	"JHide image.png zip.zip				Outputs the hidden archive as combined.png\n"
+					+	"JHide -ii image.png -ia zip.zip				Outputs the hidden archive as combined.png\n"
 					+	"JHide -ii \"path/to/image.*\" --inputarchive \"path/to/archive.*\" -o \"path/to/output.*\"");
 			System.exit(0);
 		}
