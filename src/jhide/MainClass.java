@@ -5,13 +5,21 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Stream;
 
 public class MainClass {
-	private static String version = "1.0.4";					//Global version identifier
+	private static String version = "1.0.5";					//Global version identifier
 
 	
 	
@@ -24,7 +32,6 @@ public class MainClass {
 		boolean imagesupplied = false;
 		boolean archivesupplied = false;
 		boolean outputallowed = false;
-		boolean benchmark = false;
 		List<String> arglist = Arrays.asList(args);
 		String archiveext = "[7z, bz, bz2, lzh, jar, rar, gz, tar, zip]";
 		String imageext = "[tif, tiff, gif, jpeg, jpg, jif, jfif, jp2, jpx, j2k, j2c, fpx, pcd, png, pdf]";
@@ -44,6 +51,13 @@ public class MainClass {
 		if(containsCaseInsensitive("--supportedformats", Arrays.asList(args))){
 			System.out.println("Supported archives: " + archiveext + "\n" + "Supported images: " + imageext);
 			System.exit(0);
+		}
+		if(containsCaseInsensitive("--benchmark", Arrays.asList(args))){
+			try{
+				benchmark();
+			}catch(Exception e){
+				e.printStackTrace();
+			}
 		}
 		
 		String switchstring;
@@ -137,10 +151,6 @@ public class MainClass {
 				i++;
 				break;
 				
-			case "--benchmark":
-				benchmark = true;
-				break;
-				
 			default:
 				System.out.print("Invalid parameter: " + arglist.get(i));
 				System.exit(1);
@@ -155,15 +165,10 @@ public class MainClass {
 		
 		if(imagesupplied && archivesupplied && outputallowed){
 			try {
-				long time = 0;
-				if(benchmark == true)
-					time = System.currentTimeMillis();
 				DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output)));
 				out.write(Files.readAllBytes(image.toPath()));
 				out.write(Files.readAllBytes(archive.toPath()));
 				out.close();
-				if(benchmark == true)
-					System.out.println("Action took " + (System.currentTimeMillis() - time) + "ms");
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -173,32 +178,126 @@ public class MainClass {
 		
 	}
 	
-		public static void printhelp(){
-			System.out.println(	"-h				Displays this help section\n"
-					+	"--help				\n"
-					+	"-v				Displays the installed version of JHide\n"
-					+	"--version			\n"
-					+	"-ii				Sets the path to the input image\n"
-					+ 	"--inputimage		\n"
-					+ 	"-ia				Sets the path to the input archive\n"
-					+ 	"--inputarchive		\n"
-					+ 	"-o				Sets the path for the output file. (optional)\n"
-					+ 	"--output			\n"
-					+	"--supportedformats		Prints out a list of all supported file formats\n"
-					+	"--benchmark			Displays the speed of the action in milliseconds\n\n"		
-					+	"Usage examples:\n"
-					+	"JHide -ii image.png -ia zip.zip				Outputs the hidden archive as combined.png\n"
-					+	"JHide -ii \"path/to/image.*\" --inputarchive \"path/to/archive.*\" -o \"path/to/output.*\"");
-			System.exit(0);
+	private static void benchmark() throws MalformedURLException, IOException{
+		int downloadlength = 0;
+		String[] files = new String[] {"512K.jpg", "1M.jpg", "2M.jpg", "4M.jpg", "512k.rar", "1M.rar", "2M.rar", "4M.rar"};
+		ArrayList<Integer> missingfile = new ArrayList<Integer>();
+		missingfile.addAll(Arrays.asList(0, 0, 0, 0, 0, 0, 0, 0));
+		
+		for(int i = 0; i < files.length; i++){
+			if(new File(System.getProperty("java.io.tmpdir") + "/" + files[i]).getAbsoluteFile().exists() == false){
+				downloadlength = downloadlength + getFileSize(new URL("https://github.com/Mongogamer/JHide/raw/Development/benchmark/" + files[i]));
+				missingfile.set(i, 1);
+			}else{
+				missingfile.set(i, 0);
+			}
 		}
 		
-		public static boolean containsCaseInsensitive(String s, List<String> l){
-		     for (String string : l){
-		        if (string.equalsIgnoreCase(s)){
-		            return true;
-		         }
-		     }
-		    return false;
-		  }
+		if(missingfile.contains(1)){
+			System.out.println("One or more files used for advanced benchmarking are missing. Do you wish to download them? (This will consume an additional " + humanReadableByteCount(downloadlength) + " of storage) (Y/N)");
+			Scanner reader = new Scanner(System.in);
+			String input = reader.nextLine();
+			reader.close();
+			if(input.equalsIgnoreCase("Y")){
+				int progress = 0;
+				for(int x = 0; x < files.length; x++){
+					if(missingfile.get(x).equals(1)){
+						URL website = new URL("https://github.com/Mongogamer/JHide/raw/Development/benchmark/" + files[x]);
+						ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+						FileOutputStream fos = new FileOutputStream((System.getProperty("java.io.tmpdir") + "/" + files[x]));
+						fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+						fos.close();
+						progress++;
+						progressbar(progress, missingfile);
+					}
+				}
+				System.out.println();
+				
+			}else{
+				System.out.println("Benchmarking cancelled.");
+			}
+		}
+
+		File image;
+		File archive;
+		File output = new File(System.getProperty("java.io.tmpdir") + "/output");
+		long time;
+		long time2;
+		for(int i = 0; i < 4; i++){
+			image = new File(System.getProperty("java.io.tmpdir") + "/" + files[i]);
+			archive = new File(System.getProperty("java.io.tmpdir") + "/" + files[i+4]);
+			
+			time = System.currentTimeMillis();
+			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output)));
+			out.write(Files.readAllBytes(image.toPath()));
+			out.write(Files.readAllBytes(archive.toPath()));
+			out.close();
+			time2 = System.currentTimeMillis();
+			output.delete();
+			System.out.print("Merging " + humanReadableByteCount(image.length() + archive.length()) + " took " + (time2-time) + "ms\n");
+			
+		}
+		
+		System.exit(0);
+	}
+	
+	private static void printhelp(){
+		System.out.println(	"-h				Displays this help section\n"
+				+	"--help				\n"
+				+	"-v				Displays the installed version of JHide\n"
+				+	"--version			\n"
+				+	"-ii				Sets the path to the input image\n"
+				+ 	"--inputimage		\n"
+				+ 	"-ia				Sets the path to the input archive\n"
+				+ 	"--inputarchive		\n"
+				+ 	"-o				Sets the path for the output file. (optional)\n"
+				+ 	"--output			\n"
+				+	"--supportedformats		Prints out a list of all supported file formats\n"
+				+	"--benchmark			Displays the speed of the action in milliseconds\n\n"		
+				+	"Usage examples:\n"
+				+	"JHide -ii image.png -ia zip.zip				Outputs the hidden archive as combined.png\n"
+				+	"JHide -ii \"path/to/image.*\" --inputarchive \"path/to/archive.*\" -o \"path/to/output.*\"");
+		System.exit(0);
+	}
+	
+	private static int getFileSize(URL url) {
+	    HttpURLConnection conn = null;
+	    try {
+	        conn = (HttpURLConnection) url.openConnection();
+	        conn.setRequestMethod("HEAD");
+	        conn.getInputStream();
+	        return conn.getContentLength();
+	    } catch (IOException e) {
+	        return -1;
+	    } finally {
+	        conn.disconnect();
+	    }
+	}
+	
+	public static String humanReadableByteCount(long bytes) {
+	    int unit = 1024;
+	    if (bytes < unit) return bytes + " B";
+	    int exp = (int) (Math.log(bytes) / Math.log(unit));
+	    String pre = ("KMGTPE").charAt(exp-1) + ("i");
+	    return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+	}
+	
+	private static void progressbar(int x, ArrayList<Integer> arr){
+		double d = (double) x/Collections.frequency(arr, 1) * 100;
+		System.out.print("[");
+		Stream.generate(() -> "=").limit(x * 4).forEach(System.out::print);
+		System.out.print(">");
+		Stream.generate(() -> " ").limit((Collections.frequency(arr, 1) - x) * 4).forEach(System.out::print);
+		System.out.print("]   " + d + "%\r");
+	}
+		
+	private static boolean containsCaseInsensitive(String s, List<String> l){
+	     for (String string : l){
+	        if (string.equalsIgnoreCase(s)){
+	            return true;
+	         }
+	     }
+	    return false;
+	  }
 	
 	}
