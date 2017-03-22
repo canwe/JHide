@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Scanner;
 
 public class MainClass {
-	private static String version = "1.0.3";					//Global version identifier
+	private static String version = "1.0.4";					//Global version identifier
 
 	
 	
@@ -24,6 +24,7 @@ public class MainClass {
 		boolean imagesupplied = false;
 		boolean archivesupplied = false;
 		boolean outputallowed = false;
+		boolean benchmark = false;
 		List<String> arglist = Arrays.asList(args);
 		String archiveext = "[7z, bz, bz2, lzh, jar, rar, gz, tar, zip]";
 		String imageext = "[tif, tiff, gif, jpeg, jpg, jif, jfif, jp2, jpx, j2k, j2c, fpx, pcd, png, pdf]";
@@ -93,9 +94,9 @@ public class MainClass {
 				break;
 				
 			case "-o":
-				output = new File(args[i+1]);
-				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath() + "." + imageextension).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported output file : " + output.getAbsolutePath() + "." + imageextension);
+				output = new File(args[i+1] + "." + imageextension);
+				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath()).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
+					 System.out.println("Invalid or unsupported output file : " + output.getAbsolutePath());
 					 System.exit(1);
 				 }
 				if(output.getAbsoluteFile().exists()){
@@ -115,13 +116,13 @@ public class MainClass {
 				break;
 				
 			case "--output":
-				output = new File(args[i+1]);
-				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath() + "." + imageextension).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
-					 System.out.println("Invalid or unsupported input file : " + output.getAbsolutePath());
+				output = new File(args[i+1] + "." + imageextension);
+				if(output.getAbsoluteFile().isDirectory() == true || (imageext.indexOf((output.getAbsolutePath()).replaceAll("^.*\\.(.*)$", "$1")) < 0)){
+					 System.out.println("Invalid or unsupported output file : " + output.getAbsolutePath());
 					 System.exit(1);
 				 }
 				if(output.getAbsoluteFile().exists()){
-					Scanner reader = new Scanner(System.in);	// Reading from System.in
+					Scanner reader = new Scanner(System.in);	//Reading from System.in
 					System.out.println("A file with the same name already exists. Do you wish to overwrite it? (Y/N)");
 					String input = reader.nextLine();
 					if(input.equalsIgnoreCase("y")){
@@ -134,6 +135,10 @@ public class MainClass {
 					outputallowed = true;
 				}
 				i++;
+				break;
+				
+			case "--benchmark":
+				benchmark = true;
 				break;
 				
 			default:
@@ -150,11 +155,15 @@ public class MainClass {
 		
 		if(imagesupplied && archivesupplied && outputallowed){
 			try {
-				
-				DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output + "." + imageextension)));
+				long time = 0;
+				if(benchmark == true)
+					time = System.currentTimeMillis();
+				DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output)));
 				out.write(Files.readAllBytes(image.toPath()));
 				out.write(Files.readAllBytes(archive.toPath()));
 				out.close();
+				if(benchmark == true)
+					System.out.println("Action took " + (System.currentTimeMillis() - time) + "ms");
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -173,9 +182,10 @@ public class MainClass {
 					+ 	"--inputimage		\n"
 					+ 	"-ia				Sets the path to the input archive\n"
 					+ 	"--inputarchive		\n"
-					+ 	"-o				Sets the path for the output file. If no output is specified\n				the file will be created in the current directory.\n"
+					+ 	"-o				Sets the path for the output file. (optional)\n"
 					+ 	"--output			\n"
-					+	"--supportedformats		Prints out a list of all supported file formats\n\n"
+					+	"--supportedformats		Prints out a list of all supported file formats\n"
+					+	"--benchmark			Displays the speed of the action in milliseconds\n\n"		
 					+	"Usage examples:\n"
 					+	"JHide -ii image.png -ia zip.zip				Outputs the hidden archive as combined.png\n"
 					+	"JHide -ii \"path/to/image.*\" --inputarchive \"path/to/archive.*\" -o \"path/to/output.*\"");
