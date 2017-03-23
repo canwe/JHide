@@ -19,7 +19,7 @@ import java.util.Scanner;
 import java.util.stream.Stream;
 
 public class MainClass {
-	private static String version = "1.0.5";					//Global version identifier
+	private static String version = "1.0.6";					//Global version identifier
 
 	
 	
@@ -178,11 +178,13 @@ public class MainClass {
 		
 	}
 	
-	private static void benchmark() throws MalformedURLException, IOException{
+	private static void benchmark() throws MalformedURLException, IOException, InterruptedException{
 		int downloadlength = 0;
 		String[] files = new String[] {"512K.jpg", "1M.jpg", "2M.jpg", "4M.jpg", "512k.rar", "1M.rar", "2M.rar", "4M.rar"};
 		ArrayList<Integer> missingfile = new ArrayList<Integer>();
+		boolean runlargetest = false;
 		missingfile.addAll(Arrays.asList(0, 0, 0, 0, 0, 0, 0, 0));
+		Scanner reader = new Scanner(System.in);
 		
 		for(int i = 0; i < files.length; i++){
 			if(new File(System.getProperty("java.io.tmpdir") + "/" + files[i]).getAbsoluteFile().exists() == false){
@@ -195,9 +197,7 @@ public class MainClass {
 		
 		if(missingfile.contains(1)){
 			System.out.println("One or more files used for advanced benchmarking are missing. Do you wish to download them? (This will consume an additional " + humanReadableByteCount(downloadlength) + " of storage) (Y/N)");
-			Scanner reader = new Scanner(System.in);
 			String input = reader.nextLine();
-			reader.close();
 			if(input.equalsIgnoreCase("Y")){
 				int progress = 0;
 				for(int x = 0; x < files.length; x++){
@@ -215,9 +215,42 @@ public class MainClass {
 				
 			}else{
 				System.out.println("Benchmarking cancelled.");
+				System.exit(0);
 			}
 		}
-
+		
+		if(new File(System.getProperty("java.io.tmpdir") + "/" + "25M.xyz").getAbsoluteFile().exists() == false){
+			URL website = new URL("https://github.com/Mongogamer/JHide/raw/Development/benchmark/25M.xyz");
+			System.out.println("Optional benchmarking files available. Do you wish to download them? (This will consume an additional " + humanReadableByteCount(getFileSize(website)) + " of storage) (Y/N)");
+			String input = reader.nextLine();
+			if(input.equalsIgnoreCase("Y")){
+				int size = getFileSize(website);
+				int x = 0;
+				SizeInputStream sizeInputStream = new SizeInputStream(website.openConnection().getInputStream(), getFileSize(website));
+				FileOutputStream fos = new FileOutputStream((System.getProperty("java.io.tmpdir") + "/25M.xyz"));
+				byte[] b = new byte[102400];
+				while(sizeInputStream.available() != 0){
+					fos.write(b, 0, sizeInputStream.read(b));
+					x = (int) (100 - (long) ((double) sizeInputStream.available()/size*100));
+					System.out.print("[");
+					Stream.generate(() -> "=").limit(x / 5).forEach(System.out::print);
+					System.out.print(">");
+					Stream.generate(() -> " ").limit(20-(x/5)).forEach(System.out::print);
+					System.out.print("]   " + x + "%\r");
+					fos.flush();
+				}
+				fos.close();
+				sizeInputStream.close();
+				runlargetest = true;
+				System.out.println();
+			}else{
+				System.out.println("Skipping 25M");
+			}
+		}else{
+			runlargetest = true;
+		}
+		
+		reader.close();
 		File image;
 		File archive;
 		File output = new File(System.getProperty("java.io.tmpdir") + "/output");
@@ -235,7 +268,21 @@ public class MainClass {
 			time2 = System.currentTimeMillis();
 			output.delete();
 			System.out.print("Merging " + humanReadableByteCount(image.length() + archive.length()) + " took " + (time2-time) + "ms\n");
+			Thread.sleep(1000);
+		}
+		
+		if(runlargetest){
+			image = new File(System.getProperty("java.io.tmpdir") + "/25M.xyz");
+			archive = new File(System.getProperty("java.io.tmpdir") + "/25M.xyz");
 			
+			time = System.currentTimeMillis();
+			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(output)));
+			out.write(Files.readAllBytes(image.toPath()));
+			out.write(Files.readAllBytes(archive.toPath()));
+			out.close();
+			time2 = System.currentTimeMillis();
+			output.delete();
+			System.out.print("Merging " + humanReadableByteCount(image.length() + archive.length()) + " took " + (time2-time) + "ms\n");
 		}
 		
 		System.exit(0);
